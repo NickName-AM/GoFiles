@@ -1,3 +1,5 @@
+# Create a bunch of files
+
 ## Working with files in Go
 ### Same as https://github.com/NickName-AM/PyFiles, but in Go
 
