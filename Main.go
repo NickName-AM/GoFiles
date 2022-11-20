@@ -29,6 +29,8 @@ type arguments struct {
 	ext string
 	t   int
 	v   bool
+	dl  int
+	dc  string
 }
 
 var args arguments
@@ -36,16 +38,16 @@ var fileCounter int
 
 func main() {
 	// User args
-	flag.IntVar(&args.n, "n", 1, "Number of files to create (Default: 0)")
-	flag.StringVar(&args.ext, "e", "txt", "Extension to use")
-	flag.IntVar(&args.t, "t", 1, "Number of threads(Default: 1)")
+	flag.IntVar(&args.n, "n", 1, "Number of files to create (Default: 1)")
+	flag.StringVar(&args.ext, "e", "txt", "Extension to use (Default: txt")
+	flag.IntVar(&args.t, "t", 1, "Number of threads (Default: 1)")
 	flag.BoolVar(&args.v, "v", false, "Verbosity (Default: Off)")
+	flag.IntVar(&args.dl, "dl", 0, "Length of random data to write in each file (Default: 0)")
+	flag.StringVar(&args.dc, "dc", "", "Write custom data to each file. (Not to be used with -dl)")
 	flag.Parse()
 
-	if args.t > args.n {
-		log.Fatalln("No. of Threads should be less than or equal to number of files. (t <= n))")
-		return
-	}
+	// Some checks
+	flagChecks()
 
 	// Seed to generate a random number
 	rand.Seed(time.Now().UnixNano())
@@ -65,6 +67,18 @@ func main() {
 	}
 	wg.Wait()
 
+}
+
+func flagChecks() {
+	if args.t > args.n {
+		log.Fatalln("[-] More no. of threads than files. (t <= n))")
+		os.Exit(1)
+	}
+
+	if args.dl != 0 && args.dc != "" {
+		log.Fatalln("[-] -dc and -dl flags not to be used at the same time.")
+		os.Exit(1)
+	}
 }
 
 func filesInThreads() []int {
@@ -101,6 +115,14 @@ func randomName(length int) string {
 	return s
 }
 
+func writeData(fd *os.File, data *string) {
+	filename := fd.Name()
+	_, err := fd.WriteString(*data)
+	if err != nil {
+		log.Fatalln("[-] Couldn't write to " + filename)
+	}
+}
+
 // Create the file
 func createFile(n int) {
 
@@ -114,6 +136,16 @@ func createFile(n int) {
 			log.Fatal(err)
 		}
 		defer fd.Close()
+
+		// Write random data in each file
+		if args.dl > 0 {
+			data := randomName(args.dl)
+			writeData(fd, &data)
+		}
+
+		if args.dc != "" {
+			writeData(fd, &args.dc)
+		}
 
 		// Number of files created
 		fileCounter += 1
