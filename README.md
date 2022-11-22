@@ -34,4 +34,6 @@ go run Main.go -n 100 -t 2 -e php
   -t int
         Number of threads (Default: 1) (default 1)
   -v    Verbosity (Default: Off)
+  -w string
+        Wordlist that contains filenames
 ```
