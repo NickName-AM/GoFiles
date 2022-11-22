@@ -1,16 +1,9 @@
-// Create a bunch of files
-
-// Number of files - Integer *
-// Extension - string *
-// Random Extension - Wordlist
-// Threading - Int
-// Write data - bool
-// Random Data - bool
-// CustomData - stirng
+// TODO: Threading while creating from a wordlist
 
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -25,12 +18,13 @@ const (
 )
 
 type arguments struct {
-	n   int
-	ext string
-	t   int
-	v   bool
-	dl  int
-	dc  string
+	n   int    // No. of file
+	ext string // Extension
+	t   int    // Threads
+	v   bool   // Verbosity
+	dl  int    // data length (random)
+	dc  string // Custom data string
+	w   string // Wordlist with filenames
 }
 
 var args arguments
@@ -44,28 +38,33 @@ func main() {
 	flag.BoolVar(&args.v, "v", false, "Verbosity (Default: Off)")
 	flag.IntVar(&args.dl, "dl", 0, "Length of random data to write in each file (Default: 0)")
 	flag.StringVar(&args.dc, "dc", "", "Write custom data to each file. (Not to be used with -dl)")
+	flag.StringVar(&args.w, "w", "", "Wordlist that contains filenames")
 	flag.Parse()
 
 	// Some checks
 	flagChecks()
 
-	// Seed to generate a random number
-	rand.Seed(time.Now().UnixNano())
+	if args.w == "" {
+		// Seed to generate a random number
+		rand.Seed(time.Now().UnixNano())
 
-	filesAndThreads := filesInThreads()
+		filesAndThreads := filesInThreads()
 
-	var wg sync.WaitGroup
-	wg.Add(args.t)
+		var wg sync.WaitGroup
+		wg.Add(args.t)
 
-	for _, filesInAThread := range filesAndThreads {
-		files := filesInAThread
+		for _, filesInAThread := range filesAndThreads {
+			files := filesInAThread
 
-		go func() {
-			createFile(files)
-			wg.Done()
-		}()
+			go func() {
+				createFile(files)
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	} else {
+		createFileWordlist()
 	}
-	wg.Wait()
 
 }
 
@@ -78,6 +77,13 @@ func flagChecks() {
 	if args.dl != 0 && args.dc != "" {
 		log.Fatalln("[-] -dc and -dl flags not to be used at the same time.")
 		os.Exit(1)
+	}
+
+	if args.w != "" {
+		if _, err := os.ReadFile(args.w); err != nil {
+			log.Fatalln("[-] Could not open the file. " + args.w)
+			os.Exit(1)
+		}
 	}
 }
 
@@ -93,7 +99,6 @@ func filesInThreads() []int {
 
 	// The numbers are not always distributed equally
 	// The following will handle that case
-	// If the given number is greater than the number of files that will be created
 	if args.n > fileNum*len(filesPerThread) {
 		remaining := args.n - fileNum*len(filesPerThread)
 		for i := 0; i < remaining; i++ {
@@ -125,12 +130,10 @@ func writeData(fd *os.File, data *string) {
 
 // Create the file
 func createFile(n int) {
-
 	for i := 0; i < n; i++ {
 
 		// a random filename
 		filename := randomName(6) + "." + args.ext
-
 		fd, err := os.Create(filename)
 		if err != nil {
 			log.Fatal(err)
@@ -143,6 +146,7 @@ func createFile(n int) {
 			writeData(fd, &data)
 		}
 
+		// Write user-provided data in each file
 		if args.dc != "" {
 			writeData(fd, &args.dc)
 		}
@@ -151,7 +155,35 @@ func createFile(n int) {
 		fileCounter += 1
 		if args.v {
 			fmt.Println("[+] " + filename + " Created")
+		}
+	}
 
+}
+
+func createFileWordlist() {
+	fd, err := os.Open(args.w)
+	if err != nil {
+		log.Fatalln("[-] Unable to open " + args.w)
+		os.Exit(1)
+	}
+	scanner := bufio.NewScanner(fd)
+	for scanner.Scan() {
+		filename := scanner.Text()
+		fd, err := os.Create(filename + "." + args.ext)
+		if err != nil {
+			log.Fatalln("[-] Couldnot create " + filename)
+			os.Exit(1)
+		}
+		defer fd.Close()
+		// Write random data in each file
+		if args.dl > 0 {
+			data := randomName(args.dl)
+			writeData(fd, &data)
+		}
+
+		// Write user-provided data in each file
+		if args.dc != "" {
+			writeData(fd, &args.dc)
 		}
 	}
 }
