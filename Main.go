@@ -24,6 +24,8 @@ type arguments struct {
 	dl  int    // data length (random)
 	dc  string // Custom data string
 	fl  int    // Length of filename
+	pre string // Prefix
+	suf string // Suffix
 	// w   string // Wordlist with filenames
 }
 
@@ -39,6 +41,8 @@ func main() {
 	flag.IntVar(&args.dl, "dl", 0, "Length of random data to write in each file (Default: 0)")
 	flag.StringVar(&args.dc, "dc", "", "Write custom data to each file (Not to be used with -dl)")
 	flag.IntVar(&args.fl, "fl", 10, "Length of the filename (Default: 10)")
+	flag.StringVar(&args.pre, "prefix", "", "Prefix")
+	flag.StringVar(&args.suf, "suffix", "", "Suffix")
 	// flag.StringVar(&args.w, "w", "", "Wordlist that contains filenames")
 	flag.Parse()
 
@@ -118,10 +122,12 @@ func writeData(fd *os.File, data *string) {
 
 // Create the file
 func createFile(n int) {
+	prefix := args.pre
+	suffix := args.suf
 	for i := 0; i < n; i++ {
 
 		// a random filename
-		filename := randomName(args.fl) + "." + args.ext
+		filename := prefix + randomName(args.fl) + suffix + "." + args.ext
 		fd, err := os.Create(filename)
 		if err != nil {
 			log.Fatal(err)
